@@ -79,8 +79,13 @@ def pCPUInfo():
 		sys.exit(1)
 
 	#print "%d cpus, %d threadsPerCore, %d coresPerSocket, %d sockets" % (cpus, threadsPerCore, coresPerSocket, sockets)
-	
-	cpuTree=[[[['s'+str(k)+'c'+str(i)+'t'+str(j), None, []] for j in range(0, threadsPerCore)] for i in range(0, coresPerSocket)] for k in range(0, sockets)]
+
+        ''' We can't trust that the cores are in sequential order. i e 0-11,
+        E. g. for Intel(R) Xeon(R) CPU E5-2670 v3 which is a 12 core cpu the enumeration in 0-5, 8-13. '''
+        coreEnumeration = []
+        for i in range(0, coresPerSocket):
+                coreEnumeration.append(open('/sys/devices/system/cpu/cpu' + str(i) + '/topology/core_id', 'r').read().strip())
+        cpuTree=[[[['s'+str(k)+'c'+str(i)+'t'+str(j), None, []] for j in range(0, threadsPerCore)] for i in coreEnumeration] for k in range(0, sockets)]
 
 	''' We now have a cpuTree structure made of nested lists. The hierarchy goes: cpuTree -> sockets -> cores -> threads.
 	E.g. for a 2x4x2 configuration, as detected above:
@@ -112,7 +117,7 @@ def pCPUInfo():
 		for socket in cpuTree:
 			for core in socket:
 				for thread in core:
-					if thread[0].startswith('s' + physical_package_id + 'c' + core_id):
+					if thread[0].startswith('s' + physical_package_id + 'c' + core_id + 't'):
 						# match found. try to map cpu## to second slot in the structure
 						if thread[1] is None:
 							thread[1] = 'cpu' + str(cpu) # mapped to the correct /sys/devices/system/cpu/cpu##
